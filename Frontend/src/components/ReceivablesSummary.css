@@ -1,0 +1,92 @@
+.receivables-summary {
+  display: flex;
+  flex-direction: column;
+}
+
+.receivables-summary .widget-header {
+  margin-bottom: 16px;
+}
+
+.receivables-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.receivables-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  min-width: 0;
+}
+
+.receivables-stat span {
+  font-size: 0.66rem;
+  color: var(--text-soft);
+  letter-spacing: 0.04em;
+}
+
+.receivables-stat strong {
+  font-size: 0.82rem;
+  color: #1f2937;
+  white-space: nowrap;
+}
+
+.receivables-stat .receivables-received {
+  color: #16a34a;
+}
+
+.receivables-stat .receivables-pending {
+  color: #d97706;
+}
+
+.receivables-summary .limit-progress {
+  margin-bottom: 6px;
+}
+
+.receivables-summary .limit-progress-caption {
+  margin-bottom: 14px;
+}
+
+.receivables-done {
+  margin: 0;
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+.receivables-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 6px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 140px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.receivables-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.85rem;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.receivables-list li:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.receivables-list strong {
+  font-size: 0.82rem;
+  white-space: nowrap;
+}

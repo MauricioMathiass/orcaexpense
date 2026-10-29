@@ -1,0 +1,33 @@
+# Frontend (pasta Frontend) no Netlify. O site é uma SPA estática; a API roda em outro serviço (veja render.yaml).
+# Variáveis do build (painel do Netlify > Site configuration > Environment variables):
+#   VITE_NEON_AUTH_URL  a NEON_AUTH_BASE_URL do Backend/.env.local
+#   VITE_API_URL        endereço público da API, ex.: https://orcaexpense-api.onrender.com
+# Elas são públicas: vão dentro do JavaScript do site. Nunca ponha DATABASE_URL aqui.
+
+[build]
+  base = "Frontend"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# Qualquer endereço volta para o index.html (o link do e-mail de redefinição de senha cai em "/?token=...").
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+# Arquivos com hash no nome nunca mudam: podem ficar em cache por um ano.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

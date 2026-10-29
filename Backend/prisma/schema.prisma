@@ -1,0 +1,109 @@
+// Modelo de dados do OrçaFY Expense (PostgreSQL no Neon).
+//
+// Os usuários ficam no Neon Auth (schema `neon_auth`, gerenciado pelo Neon). Aqui só guardamos
+// o id dele em `userId`: nada de senha ou e-mail nestas tabelas.
+// Valores em dinheiro usam Decimal(12,2): sem erro de arredondamento de ponto flutuante.
+// `position` guarda a ordem em que o usuário vê a lista.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  // Conexão com pool (host "-pooler"): usada pela API em execução.
+  url       = env("DATABASE_URL")
+  // Conexão direta: usada pelas migrações (o pool não aceita comandos de sessão).
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+// Cartão de crédito. `spent` é o gasto atual da fatura; `limit` o limite total.
+model Card {
+  id         String  @id
+  userId     String
+  position   Int     @default(0)
+  brand      String
+  network    String
+  holder     String
+  lastDigits String  @db.VarChar(4)
+  bgClass    String  @default("card-dark")
+  limit      Decimal @default(0) @db.Decimal(12, 2)
+  spent      Decimal @default(0) @db.Decimal(12, 2)
+
+  checklist ChecklistItem[]
+  // A fatura do cartão é uma despesa ligada a ele; apagar o cartão apaga a fatura.
+  expenses  Expense[]
+
+  @@index([userId])
+}
+
+// Compra lançada em um cartão (à vista ou parcelada).
+model ChecklistItem {
+  id           String  @id
+  cardId       String
+  position     Int     @default(0)
+  name         String
+  amount       Decimal @default(0) @db.Decimal(12, 2)
+  installment  Boolean @default(false)
+  installments Int?
+  settled      Boolean @default(false)
+
+  card Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@index([cardId])
+}
+
+// Despesa fixa. Quando `cardId` existe, é a fatura daquele cartão.
+model Expense {
+  id       String  @id
+  userId   String
+  cardId   String?
+  position Int     @default(0)
+  name     String
+  amount   Decimal @default(0) @db.Decimal(12, 2)
+  paid     Boolean @default(false)
+
+  card Card? @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([cardId])
+}
+
+// Valores de terceiros: uma pessoa com uma ou mais compras.
+model Receivable {
+  id       String @id
+  userId   String
+  position Int    @default(0)
+  name     String
+
+  purchases Purchase[]
+
+  @@index([userId])
+}
+
+model Purchase {
+  id               String  @id
+  receivableId     String
+  position         Int     @default(0)
+  label            String  @default("")
+  amount           Decimal @default(0) @db.Decimal(12, 2)
+  installment      Boolean @default(false)
+  installments     Int?
+  paidInstallments Int     @default(0)
+  received         Boolean @default(false)
+
+  receivable Receivable @relation(fields: [receivableId], references: [id], onDelete: Cascade)
+
+  @@index([receivableId])
+}
+
+// Blocos personalizados da Visão Geral.
+model Widget {
+  id          String @id
+  userId      String
+  position    Int    @default(0)
+  title       String
+  description String @default("")
+
+  @@index([userId])
+}

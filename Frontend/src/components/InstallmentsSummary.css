@@ -1,0 +1,106 @@
+.installments-summary {
+  display: flex;
+  flex-direction: column;
+}
+
+.installments-summary .widget-header {
+  margin-bottom: 16px;
+}
+
+.installments-empty {
+  margin: 0;
+}
+
+.installments-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.installments-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 10px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  min-width: 0;
+}
+
+.installments-stat span {
+  font-size: 0.66rem;
+  color: var(--text-soft);
+  letter-spacing: 0.04em;
+}
+
+.installments-stat strong {
+  font-size: 0.82rem;
+  color: #1f2937;
+  white-space: nowrap;
+}
+
+.installments-stat .installments-paid {
+  color: #16a34a;
+}
+
+.installments-stat .installments-remaining {
+  color: #d97706;
+}
+
+.installments-summary .limit-progress {
+  margin-bottom: 6px;
+}
+
+.installments-summary .limit-progress-caption {
+  margin-bottom: 14px;
+}
+
+.installments-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 6px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 170px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.installments-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.installments-list li:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.installments-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.installments-item-info strong {
+  font-size: 0.88rem;
+}
+
+.installments-item-info span {
+  font-size: 0.7rem;
+  color: var(--text-soft);
+  line-height: 1.4;
+}
+
+.installments-summary .expense-edit-button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}

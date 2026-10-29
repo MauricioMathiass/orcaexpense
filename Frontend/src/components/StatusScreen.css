@@ -1,0 +1,40 @@
+.status-screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px;
+  text-align: center;
+  color: var(--text-soft);
+  font-weight: 500;
+}
+
+.status-screen p {
+  margin: 0;
+  max-width: 420px;
+}
+
+/* Seletor duplo: o .pill-button (flex: 1 1 180px) carrega depois e esticaria o botão na vertical. */
+.status-screen .status-screen-action {
+  flex: none;
+  min-width: 180px;
+}
+
+/* Aviso discreto quando a gravação automática falha. */
+.save-status {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  z-index: 30;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 0.85rem;
+  font-weight: 600;
+  box-shadow: var(--shadow-md);
+}

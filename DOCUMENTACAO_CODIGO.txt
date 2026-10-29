@@ -1,0 +1,1218 @@
+================================================================================
+ ORCAFY EXPENSE (OrcaEXPENSE) - DOCUMENTACAO COMPLETA DO CODIGO
+================================================================================
+
+Este arquivo explica, arquivo por arquivo e trecho por trecho, tudo o que foi
+desenvolvido no projeto. Nos arquivos .jsx/.js (a logica da aplicacao) a
+explicacao segue quase linha a linha. Nos arquivos .css a explicacao e feita
+por bloco/regra (explicar "cada linha" de um valor tipo `padding: 24px` nao
+agregaria informacao), descrevendo o que cada classe controla visualmente.
+
+Stack: React 18 + Vite 5, JavaScript puro (sem TypeScript), sem backend -
+todo o estado vive em memoria (useState), ou seja, ao recarregar a pagina os
+dados voltam ao valor inicial definido no codigo.
+
+--------------------------------------------------------------------------------
+ ESTRUTURA DE PASTAS
+--------------------------------------------------------------------------------
+src/
+  main.jsx                     -> ponto de entrada do React
+  App.jsx                      -> componente raiz, so monta o DashboardLayout
+  styles.css                   -> estilos globais (fundo, sidebar, painel, etc.)
+  assets/LogoPrincipal.png     -> logo usado na sidebar
+  utils/
+    formatCurrency.js          -> formata numeros como "R$ 1.234,56"
+  components/
+    DashboardLayout.jsx        -> "cerebro" da aplicacao: todo o estado e as
+                                   funcoes que alteram esse estado
+    SidebarMenu.jsx             -> menu lateral (navegacao + logout)
+    Modal.jsx                   -> componente generico de modal (usa portal)
+    Modal.css                   -> estilos de todos os modais
+    CreditCardFace.jsx           -> desenho visual de um cartao + dados seed
+    CardsPanel.jsx                -> tela/bloco "Meus Cartoes" (grade de
+                                   cartoes, detalhe do cartao selecionado)
+    CardsPanel.css                -> estilos do painel de cartoes
+    CardChecklist.jsx             -> checklist de compras dentro de um cartao
+    ExpensesPanel.jsx             -> lista de despesas fixas (widget e pagina)
+    ExpensesPanel.css             -> estilos da lista de despesas
+    icons.jsx                     -> conjunto de icones SVG reutilizaveis
+    modals/
+      AddCardModal.jsx           -> formulario "novo cartao"
+      AddChecklistItemModal.jsx  -> formulario "novo item da lista de compras"
+      EditChecklistItemModal.jsx -> formulario "editar item da lista de compras"
+      AddExpenseModal.jsx        -> formulario "nova despesa fixa"
+      EditExpenseModal.jsx       -> formulario "editar despesa fixa"
+      AddWidgetModal.jsx         -> formulario "novo card" (widget customizado)
+      EditTotalModal.jsx         -> formulario "editar valor total de gastos"
+      DetailsModal.jsx           -> modal somente leitura "Detalhes financeiros"
+      LogoutModal.jsx            -> modal de confirmacao de logout
+  pages/
+    OverviewPage.jsx / .css     -> pagina "Visao Geral"
+    CardsPage.jsx               -> pagina "Meus Cartoes" (wrapper fino)
+    ExpensesPage.jsx            -> pagina "Despesas Fixas" (wrapper fino)
+
+Fluxo geral: main.jsx renderiza App.jsx, que renderiza DashboardLayout.jsx.
+O DashboardLayout guarda TODO o estado da aplicacao (cartoes, despesas, modais
+abertos, valores digitados nos formularios) e repassa esse estado + funcoes
+de manipulacao via props para as 3 paginas (Overview/Cards/Expenses), que por
+sua vez repassam para os componentes visuais (CardsPanel, ExpensesPanel,
+CardChecklist, etc). Ou seja, e um fluxo unidirecional classico de React:
+estado desce via props, eventos sobem via callbacks (funcoes passadas por
+props que sao chamadas dentro dos componentes filhos).
+
+================================================================================
+ 1. src/main.jsx
+================================================================================
+Ponto de entrada da aplicacao (chamado pelo Vite/index.html).
+
+  1  import React from 'react'
+  2  import ReactDOM from 'react-dom/client'
+  3  import App from './App'
+  4  import './styles.css'
+     -> importa React, a API do React 18 para criar a "raiz" da aplicacao,
+        o componente App (a arvore inteira da aplicacao) e o CSS global.
+
+  6  ReactDOM.createRoot(document.getElementById('root')).render(
+  7    <React.StrictMode>
+  8      <App />
+  9    </React.StrictMode>,
+ 10  )
+     -> pega a <div id="root"> do index.html e monta a arvore React dentro
+        dela. React.StrictMode e um wrapper de desenvolvimento que ajuda a
+        detectar efeitos colaterais indevidos (nao afeta a build final).
+
+================================================================================
+ 2. src/App.jsx
+================================================================================
+Componente raiz. Depois da restruturacao, ficou minimo: apenas importa os
+arrays de dados "seed" (dados iniciais) de dentro de cada componente dono do
+assunto e os repassa para o DashboardLayout.
+
+  1  import { DashboardLayout } from './components/DashboardLayout'
+  2  import { cards } from './components/CreditCardFace'
+  3  import { fixedExpenses } from './components/ExpensesPanel'
+  4  import { summaryActions } from './pages/OverviewPage'
+     -> `cards`      : lista inicial dos 3 cartoes (definida dentro de
+                        CreditCardFace.jsx, pois e o componente "dono" do
+                        conceito de cartao).
+     -> `fixedExpenses`: lista inicial das despesas fixas (definida dentro de
+                        ExpensesPanel.jsx).
+     -> `summaryActions`: os 5 botoes de acao do hero card (Adicionar,
+                        Despesas Fixas, Cartoes, Detalhes, Gastos Totais),
+                        definidos dentro de OverviewPage.jsx.
+        Essa e a "regra" estabelecida na restruturacao: cada array de dados
+        vive dentro do componente que mais o utiliza/representa, e o App.jsx
+        so importa e repassa adiante.
+
+  6  function App() {
+  7    return (
+  8      <DashboardLayout
+  9        summaryActions={summaryActions}
+ 10        cards={cards}
+ 11        fixedExpenses={fixedExpenses}
+ 12      />
+ 13    )
+ 14  }
+     -> App simplesmente instancia o DashboardLayout passando os 3 arrays
+        acima como props iniciais (dados "de fabrica").
+
+ 16  export default App
+
+================================================================================
+ 3. src/utils/formatCurrency.js
+================================================================================
+   1  export function formatCurrency(value) {
+   2    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+   3  }
+     -> funcao utilitaria unica: recebe um numero (ex: 1234.5) e devolve a
+        string formatada como moeda brasileira (ex: "R$ 1.234,50"), usando a
+        API nativa do JavaScript Intl (via toLocaleString). E usada em todo
+        lugar do app onde um valor monetario e exibido.
+
+================================================================================
+ 4. src/components/DashboardLayout.jsx  (o coracao da aplicacao)
+================================================================================
+Este componente concentra TODO o estado (useState) e TODAS as funcoes que
+alteram esse estado (handlers). As paginas e os demais componentes sao,
+propositalmente, "burros": so recebem dados prontos e chamam funcoes que
+vem daqui via props.
+
+--- IMPORTS (linhas 1-14) ---
+Importa `useState` do React, o `SidebarMenu`, todos os 9 modais, e as 3
+paginas (OverviewPage, CardsPage, ExpensesPage).
+
+--- DECLARACAO E ESTADO (linhas 16-65) ---
+
+ 16  export function DashboardLayout({ summaryActions, cards, fixedExpenses }) {
+     -> recebe do App.jsx os dados "seed" (cartoes, despesas fixas, acoes do
+        hero).
+
+ 17  const [cardsState, setCardsState] = useState(() => cards.map((card) => ({ ...card })))
+     -> cria o estado "vivo" dos cartoes, copiando (spread `{...card}`) cada
+        cartao recebido por prop. A copia e importante para nao mutar o array
+        original `cards` (que e um modulo importado e compartilhado).
+        Usa uma funcao inicializadora (`() => ...`) para o useState rodar essa
+        copia so na primeira renderizacao.
+
+ 18-27 const [expenses, setExpenses] = useState(() => [
+        ...fixedExpenses.map((expense, index) => ({ ...expense, id: `initial-${index}` })),
+        ...cards.map((card) => ({
+          id: `card-bill-${card.id}`,
+          name: `Fatura - ${card.brand}`,
+          paid: false,
+          amount: card.spent,
+          cardId: card.id,
+        })),
+      ])
+     -> monta a lista inicial de "despesas" unificando dois grupos:
+        (a) as despesas fixas manuais (Aluguel, Internet, Energia), cada uma
+            recebendo um id artificial `initial-0`, `initial-1`, etc.
+        (b) uma despesa "Fatura - <NOME DO CARTAO>" GERADA AUTOMATICAMENTE
+            para cada cartao, com `amount` = o valor ja gasto no cartao
+            (`card.spent`) e um campo extra `cardId` que liga essa despesa
+            aquele cartao especifico. E esse campo `cardId` que permite,
+            mais adiante, sincronizar o valor da fatura sempre que o
+            checklist de compras do cartao mudar.
+
+ 28  const [activeView, setActiveView] = useState('overview')
+     -> controla qual pagina esta visivel: 'overview' | 'cards' | 'expenses'.
+
+ 29  const [loggedOut, setLoggedOut] = useState(false)
+ 30  const [confirmingLogout, setConfirmingLogout] = useState(false)
+     -> `loggedOut` troca toda a area principal pela tela de "voce saiu";
+        `confirmingLogout` controla a exibicao do modal de confirmacao.
+
+ 31-33 addingExpense / newExpenseName / newExpenseAmount
+     -> controla o modal "Nova despesa" e os campos do formulario (inputs
+        controlados: o valor do input SEMPRE vem do estado React).
+
+ 34-36 editingExpense / editExpenseDraft / editExpenseAmountDraft
+     -> `editingExpense` guarda o OBJETO da despesa sendo editada (ou null
+        se nenhum modal de edicao estiver aberto); os drafts guardam o texto
+        digitado nos campos nome/valor enquanto o usuario edita.
+
+ 37  const [showingDetails, setShowingDetails] = useState(false)
+     -> controla o modal "Detalhes financeiros".
+
+ 38  const [heroMode, setHeroMode] = useState('geral')
+     -> controla QUAL numero o card principal (hero) mostra: 'geral' (valor
+        total editavel manualmente), 'expenses' (soma das despesas fixas em
+        aberto) ou 'cards' (soma do gasto nos cartoes). Trocado pelos botoes
+        de acao do hero.
+
+ 39-41 totalValue / editingTotal / totalDraft
+     -> `totalValue` e o "Valor Total de Gastos" editavel manualmente (valor
+        inicial 1913.70); os outros dois controlam o modal de edicao desse
+        valor.
+
+ 42-45 customWidgets / addingWidget / newWidgetTitle / newWidgetDescription
+     -> `customWidgets` e a lista de cards extras que o usuario pode criar
+        na Visao Geral (titulo + descricao); os demais controlam o modal
+        "Novo card".
+
+ 46-52 addingCard / newCardBrand / newCardNetwork / newCardLastDigits /
+       newCardLimit / newCardSpent / newCardColor
+     -> controlam o modal "Novo cartao" e cada campo do formulario
+        (nome/bandeira/ultimos 4 digitos/limite/gasto atual/cor).
+
+ 53-58 addingChecklistItem / newChecklistItemName / newChecklistItemAmount /
+       newChecklistItemInstallment / newChecklistItemInstallments /
+       newChecklistItemInstallmentAmount
+     -> controlam o modal "Novo item" da lista de compras de um cartao:
+        `addingChecklistItem` guarda o ID do CARTAO para o qual o item esta
+        sendo cadastrado (nao um booleano - por isso o modal sabe em qual
+        cartao inserir o item ao salvar); os demais sao os campos do
+        formulario, incluindo os campos novos de parcelamento:
+        `Installment` (Sim/Nao), `Installments` (numero de parcelas) e
+        `InstallmentAmount` (valor de CADA parcela, digitado manualmente -
+        implementacao mais recente).
+
+ 59-65 editingChecklistItem / editChecklistItemDraft /
+       editChecklistItemAmountDraft / editChecklistItemInstallmentDraft /
+       editChecklistItemInstallmentsDraft /
+       editChecklistItemInstallmentAmountDraft
+     -> equivalentes aos de cima, mas para o modal de EDICAO de um item ja
+        existente. `editingChecklistItem` guarda `{ cardId, itemId }` para
+        saber exatamente qual item, dentro de qual cartao, esta sendo salvo.
+
+--- FUNCOES DE DESPESAS FIXAS (linhas 67-106) ---
+
+ 67-88 function toggleExpense(id) { ... }
+     -> chamada quando o usuario marca/desmarca uma despesa como paga
+        (checkbox). Passos:
+        1. Acha a despesa pelo id; se nao existir, sai.
+        2. Calcula `nextPaid` (o oposto do estado atual `paid`).
+        3. Atualiza a lista de despesas trocando `paid` daquele item.
+        4. Ajusta `totalValue`: se acabou de ser marcada como PAGA, SUBTRAI
+           o valor do total (a logica de negocio e "valor total de gastos"
+           representa o que ainda falta pagar); se foi DESMARCADA, soma de
+           volta.
+        5. Se a despesa tiver `cardId` (ou seja, e uma "Fatura - X" ligada a
+           um cartao), tambem atualiza o `spent` desse cartao: paga -> zera
+           o gasto do cartao (`0`); despaga -> volta o gasto para o valor da
+           fatura (`amount`).
+
+ 90-106 function deleteExpense(id) { ... }
+     -> exclui uma despesa da lista. Se a despesa excluida estava PAGA,
+        devolve o valor dela ao `totalValue` (pois deixa de estar "descontada"
+        do total) e, se estava ligada a um cartao, restaura o `spent` do
+        cartao para o valor da fatura.
+
+--- FUNCOES DE CARTOES (linhas 108-142) ---
+
+108-142 function handleAddCard(event) { ... }
+     -> chamada ao submeter o formulario "Novo cartao".
+        - `event.preventDefault()` evita o recarregamento de pagina padrao
+          de formularios HTML.
+        - Valida: marca/bandeira nao vazias e exatamente 4 digitos finais;
+          se invalido, apenas retorna sem fazer nada (o botao Adicionar ja
+          fica desabilitado nesses casos, entao isso e uma segunda camada de
+          seguranca).
+        - Converte limite/gasto digitados (string) para numero com `Number(...) || 0`.
+        - Gera um `id` unico usando `Date.now()` (timestamp em ms).
+        - Reaproveita o `holder` (nome do titular) do primeiro cartao
+          existente, para manter o mesmo nome em todos os cartoes.
+        - Adiciona o novo cartao ao `cardsState`.
+        - Cria AUTOMATICAMENTE a despesa "Fatura - <MARCA>" ligada a esse
+          cartao (mesmo padrao usado na inicializacao).
+        - Limpa todos os campos do formulario e fecha o modal.
+
+--- SINCRONIZACAO CARTAO <-> FATURA (linhas 144-151) ---
+
+144-151 function syncCardBillAmount(cardId, delta) { ... }
+     -> funcao central de sincronizacao: recebe o ID do cartao e um "delta"
+        (diferenca a aplicar, pode ser positivo ou negativo). Se o delta for
+        0/falsy, nao faz nada. Caso contrario, percorre as despesas e, na que
+        tiver `cardId` igual, soma o delta ao `amount` dela. Isso garante que
+        a despesa "Fatura - X" sempre reflita exatamente o gasto atual do
+        cartao, sem precisar recalcular do zero - so aplica a diferenca.
+
+--- CHECKLIST DE COMPRAS (linhas 153-272) ---
+
+153-193 function handleAddChecklistItem(event) { ... }
+     -> chamada ao submeter o formulario "Novo item" da lista de compras.
+        - Bloqueia envio se o nome estiver vazio.
+        - `cardId` vem do estado `addingChecklistItem` (setado quando o
+          usuario clicou em "Adicionar" dentro de um cartao especifico).
+        - Calcula `installments`: se for compra parcelada, usa
+          `Math.max(2, Number(...) || 2)` (garante um minimo de 2 parcelas,
+          mesmo se o campo estiver vazio ou invalido); senao, `undefined`.
+        - Calcula `amount` (a IMPLEMENTACAO MAIS RECENTE, valor manual da
+          parcela): se parcelado, `amount = installments * valorDaParcela`
+          (o total da compra e DERIVADO multiplicando as parcelas pelo valor
+          unitario digitado pelo usuario); se nao parcelado, e simplesmente o
+          valor digitado no campo unico "Valor (R$)".
+        - Atualiza `cardsState`: no cartao correspondente, soma `amount` ao
+          `spent` (o gasto do cartao sobe imediatamente pelo valor TOTAL da
+          compra, mesmo que ela seja parcelada - reflete o comportamento
+          real de cartao de credito, onde o limite e comprometido no ato da
+          compra) e acrescenta o novo item ao array `checklist` do cartao,
+          com `id` unico (`item-<timestamp>`), `name`, `amount`,
+          `installment` (booleano) e `installments` (numero ou undefined).
+        - Chama `syncCardBillAmount(cardId, amount)` para a Fatura andar
+          junto.
+        - Reseta todos os campos do formulario e fecha o modal
+          (`setAddingChecklistItem(null)`).
+
+195-212 function deleteChecklistItem(cardId, itemId) { ... }
+     -> localiza o item a ser removido (para saber o `amount` dele antes de
+        apagar), remove do `checklist` do cartao, SUBTRAI esse valor do
+        `spent` do cartao, e sincroniza a Fatura com um delta negativo
+        (`-(target?.amount || 0)`).
+
+214-225 function handleOpenEditChecklistItem(cardId, item) { ... }
+     -> chamada ao clicar no lapis (editar) de um item do checklist. Preenche
+        todos os campos do modal de edicao com os dados atuais do item:
+        - nome, valor total (`amount`), se e parcelado, numero de parcelas.
+        - PONTO IMPORTANTE (ultima feature implementada): como o campo
+          exibido no formulario agora e o "valor da parcela" (nao mais o
+          total), e o item so guarda o TOTAL (`amount`) + `installments`, essa
+          funcao precisa RECONSTRUIR o valor da parcela dividindo:
+          `item.amount / item.installments`. Assim, ao reabrir o item para
+          editar, o campo "Valor da parcela" aparece corretamente preenchido
+          com o valor unitario, e nao com o total.
+
+227-272 function handleSaveChecklistItem(event) { ... }
+     -> chamada ao submeter o formulario de EDICAO de um item.
+        - Pega `cardId`/`itemId` do estado `editingChecklistItem`.
+        - Recalcula `installments` e `amount` com a MESMA logica do "add"
+          (installments * valor da parcela, se parcelado).
+        - Busca o `amount` ANTERIOR do item (`previousAmount`) dentro do
+          `cardsState` atual, para poder calcular `delta = amount - previousAmount`
+          (a diferenca entre o novo valor e o valor antigo).
+        - Aplica esse `delta` ao `spent` do cartao (soma, podendo ser
+          negativo se o novo valor for menor que o antigo) e atualiza o item
+          dentro do array `checklist` com os novos dados.
+        - Sincroniza a Fatura com o mesmo `delta`.
+        - Fecha o modal e limpa todos os campos de rascunho.
+
+--- EXCLUSAO DE CARTAO (linhas 274-283) ---
+
+274-283 function deleteCard(id) { ... }
+     -> remove o cartao de `cardsState` e remove a despesa "Fatura" ligada a
+        ele (filtrando por `cardId`). Se essa fatura estava marcada como
+        PAGA, devolve o valor dela ao `totalValue` (mesma logica de
+        `deleteExpense`).
+
+--- DESPESAS FIXAS (ADICIONAR/EDITAR) (linhas 285-326) ---
+
+285-297 function handleAddExpense(event) { ... }
+     -> cria uma nova despesa fixa manual (id `expense-<timestamp>`, sempre
+        comeca como `paid: false`), limpa o formulario e fecha o modal.
+
+299-303 function handleOpenEditExpense(expense) { ... }
+     -> abre o modal de edicao preenchendo os drafts com os dados atuais da
+        despesa clicada.
+
+305-326 function handleSaveExpenseName(event) { ... }
+     -> salva as alteracoes de nome/valor de uma despesa. Se a despesa
+        estiver PAGA e o valor tiver mudado, ajusta o `totalValue` pela
+        diferenca (`amount - previousAmount`), pois um valor pago que muda de
+        preco deve refletir no total ja descontado.
+
+--- ACOES DO HERO CARD (linhas 328-334) ---
+
+328-334 function handleSummaryAction(actionId) { ... }
+     -> roteia o clique nos 5 botoes do hero card:
+        'add'      -> abre o modal de novo widget/card customizado
+        'expenses' -> muda `heroMode` para 'expenses' (mostra soma de despesas)
+        'cards'    -> muda `heroMode` para 'cards' (mostra soma de cartoes)
+        'total'    -> volta `heroMode` para 'geral' (valor total editavel)
+        'details'  -> abre o modal de Detalhes financeiros
+
+--- WIDGETS CUSTOMIZADOS (linhas 336-352) ---
+
+336-348 function handleAddWidget(event) { ... }
+     -> cria um novo widget customizado (id, titulo, descricao) na Visao
+        Geral e fecha o modal.
+
+350-352 function handleRemoveWidget(id) { ... }
+     -> remove um widget customizado pelo id.
+
+--- LOGIN/LOGOUT (linhas 354-357) ---
+
+354-357 function handleLoginAgain() { ... }
+     -> chamado no botao "Entrar novamente" da tela de logout: volta
+        `loggedOut` para false e reseta a view ativa para 'overview'.
+
+--- EDICAO DO VALOR TOTAL (linhas 359-371) ---
+
+359-362 function handleOpenEditTotal() { ... }
+     -> abre o modal de edicao do "Valor Total de Gastos", pre-preenchendo o
+        campo com o valor atual.
+
+364-371 function handleSaveTotal(event) { ... }
+     -> valida que o novo valor digitado e um numero valido e >= 0; se sim,
+        atualiza `totalValue` e fecha o modal.
+
+--- CALCULOS DERIVADOS (linhas 373-389) ---
+Esses valores NAO ficam em estado - sao recalculados a cada renderizacao a
+partir do estado atual, garantindo que estejam sempre corretos:
+
+373  const paidCount = expenses.filter((expense) => expense.paid).length
+374  const pendingCount = expenses.length - paidCount
+     -> quantidade de despesas pagas e pendentes (usado no modal de Detalhes).
+
+376-378 const expensesTotal = expenses.filter(...).reduce(...)
+     -> soma o `amount` de todas as despesas AINDA NAO PAGAS (usado quando
+        heroMode === 'expenses').
+
+379  const cardsTotal = cardsState.reduce((sum, card) => sum + card.spent, 0)
+     -> soma do `spent` de todos os cartoes (usado quando heroMode === 'cards').
+
+380  const cardsLimitTotal = cardsState.reduce((sum, card) => sum + card.limit, 0)
+     -> soma do `limit` de todos os cartoes (usado no modal de Detalhes, como
+        "Limite total dos cartoes").
+
+382-389 heroValue / heroLabel
+     -> decide, com base em `heroMode`, qual numero e qual rotulo (label) o
+        hero card deve exibir: 'expenses' -> expensesTotal + "GASTOS EM
+        DESPESAS FIXAS"; 'cards' -> cardsTotal + "GASTOS EM CARTOES"; default
+        ('geral') -> totalValue + "VALOR TOTAL DE GASTOS".
+
+--- RENDERIZACAO (linhas 391-615) ---
+
+391-400 <div className="app-shell"> ... cenario de fundo (orbs/planos 3D) ...
+     -> estrutura visual de fundo puramente decorativa (bolhas/planos com
+        efeito de perspectiva 3D via CSS).
+
+402-406 <SidebarMenu ... />
+     -> passa `activeView`, `onNavigate={setActiveView}` (troca de pagina) e
+        `onLogout` (abre o modal de confirmacao de saida).
+
+408-556 Bloco de renderizacao condicional de TODOS OS 9 MODAIS:
+     -> cada modal so e renderizado (`{condicao && <Modal.../>}`) quando o
+        estado booleano/objeto correspondente esta "ativo". Cada um recebe:
+        os valores atuais dos campos (para inputs controlados), as funcoes
+        `on*Change` (ligam cada input ao respectivo `useState`), `onCancel`
+        (fecha o modal e limpa os campos) e `onSubmit` (a funcao handler
+        correspondente, descrita acima). Esse padrao se repete para:
+        LogoutModal, AddExpenseModal, EditExpenseModal, AddWidgetModal,
+        AddCardModal, AddChecklistItemModal, EditChecklistItemModal,
+        EditTotalModal, DetailsModal.
+
+558-613 <main className="dashboard">
+     -> se `loggedOut` for true, mostra a tela de "Voce saiu da sua conta"
+        com um botao para logar de novo.
+     -> senao, mostra a pagina correspondente a `activeView`:
+        - 'overview'  -> <OverviewPage /> recebendo TODOS os dados e handlers
+          necessarios para hero card, painel de cartoes (modo compacto/
+          embutido) e widgets.
+        - 'cards'     -> <CardsPage /> recebendo os dados/handlers de cartoes
+          e do checklist.
+        - 'expenses'  -> <ExpensesPage /> recebendo os dados/handlers de
+          despesas fixas.
+     Cada pagina recebe SOMENTE o que precisa (principio de "props minimas").
+
+================================================================================
+ 5. src/components/SidebarMenu.jsx
+================================================================================
+Menu lateral fixo com efeito de "expandir ao passar o mouse".
+
+  4-8  const menuItems = [ ... ]
+     -> array com os 3 itens do menu (id, label, componente de icone).
+        `icon: GridIcon` guarda a REFERENCIA da funcao (nao o JSX renderizado)
+        para poder renderiza-la dinamicamente depois (`<Icon />`).
+
+ 10  export function SidebarMenu({ activeView, onNavigate, onLogout }) {
+ 11    const [expanded, setExpanded] = useState(false)
+     -> estado local (nao precisa estar no DashboardLayout, pois e puramente
+        visual/temporario): controla se a sidebar esta expandida.
+
+ 14-18 <aside className={... } onMouseEnter={() => setExpanded(true)}
+        onMouseLeave={() => setExpanded(false)}>
+     -> ao passar o mouse por cima, expande a barra (mostra os textos); ao
+        tirar o mouse, recolhe.
+
+ 19-28 bloco do logo/marca ("ORCAFY EXPENSE" + subtitulo), com classe
+        `visible` condicional para animar a entrada do texto so quando
+        `expanded` for true.
+
+ 30-50 <nav> ... menuItems.map(...) ...
+     -> para cada item do menu, renderiza um botao com o icone e o texto
+        (texto so fica visivel quando expandido); `isActive` compara o `id`
+        do item com `activeView` para aplicar a classe `active` e o atributo
+        de acessibilidade `aria-current="page"`; o `onClick` chama
+        `onNavigate(item.id)`, que e o `setActiveView` do DashboardLayout.
+
+ 52-54 botao de logout, chama `onLogout` (abre o modal de confirmacao).
+
+ 59-97 Componentes de icone SVG locais (GridIcon, CardIcon, WalletIcon,
+        LogoutIcon) - cada um e so um `<svg>` com `<path>`/`<rect>` desenhando
+        o icone; usam a classe `.icon-stroke` (definida em styles.css) para
+        herdar cor/traco.
+
+================================================================================
+ 6. src/components/Modal.jsx
+================================================================================
+Componente generico usado por TODOS os modais da aplicacao.
+
+   1  import { createPortal } from 'react-dom'
+     -> Portal e a API do React para renderizar um componente FORA da arvore
+        DOM normal do componente pai, direto em outro elemento (aqui,
+        `document.body`).
+
+   4-11 export function Modal({ children }) {
+          return createPortal(
+            <div className="modal-backdrop" role="dialog" aria-modal="true">
+              {children}
+            </div>,
+            document.body,
+          )
+        }
+     -> por que o portal existe: o `.app-shell` (container principal) usa a
+        propriedade CSS `perspective`, que faz esse elemento se tornar o
+        "containing block" de qualquer filho com `position: fixed` -
+        quebrando o posicionamento esperado (o fundo escurecido/modal ficava
+        deslocado, causando uma "barra preta" visual). Renderizando o modal
+        via portal direto no `<body>`, ele escapa desse contexto de
+        empilhamento e volta a se posicionar corretamente em relacao a tela
+        inteira. `role="dialog"` e `aria-modal="true"` sao atributos de
+        acessibilidade que indicam a leitores de tela que se trata de uma
+        janela modal.
+
+================================================================================
+ 7. src/components/CreditCardFace.jsx
+================================================================================
+Contem os dados iniciais dos cartoes e o desenho visual da "face" de um
+cartao (reutilizado tanto na grade da pagina Cartoes quanto no card
+selecionado/detalhe).
+
+   1  import { ContactlessIcon } from './icons'
+
+   3-34 export const cards = [ {...}, {...}, {...} ]
+     -> os 3 cartoes de exemplo: id, brand (nome), network (bandeira/
+        categoria), holder (nome do titular - editado manualmente para
+        "MAURICIO S MATHIAS"), lastDigits, bgClass (classe CSS que define a
+        cor de fundo do cartao) e os valores financeiros limit/spent.
+
+  36-66 export function CreditCardFace({ card }) {
+     -> recebe um objeto `card` e desenha visualmente:
+        - `.credit-card-top`: o chip (com textura via CSS) + icone contactless
+          a esquerda, e a bandeira/nome do cartao a direita.
+        - `.credit-card-number`: numero mascarado, mostrando so os
+          `lastDigits` (ultimos 4 digitos reais).
+        - `.credit-card-meta`: rotulos "CARD HOLDER" / "VALID THRU".
+        - `.credit-card-footer`: nome do titular a esquerda, validade fixa
+          "12/29" e um mini-chip decorativo a direita.
+        Esse componente e puramente apresentacional (nao tem estado nem
+        logica de negocio).
+
+================================================================================
+ 8. src/components/CardsPanel.jsx
+================================================================================
+Peca central da funcionalidade de cartoes. Usado tanto embutido na Visao
+Geral (`standalone` ausente/false) quanto na pagina "Meus Cartoes"
+(`standalone` = true), com comportamentos ligeiramente diferentes.
+
+   9-17 export function CardsPanel({ cards, onAddCard, onDeleteCard, standalone,
+         onAddChecklistItem, onEditChecklistItem, onDeleteChecklistItem }) {
+
+  18  const [selectedCardId, setSelectedCardId] = useState(null)
+  19  const selectedCard = cards.find((card) => card.id === selectedCardId) || null
+     -> PONTO IMPORTANTE (correcao de bug historica): guarda-se apenas o ID
+        do cartao selecionado, NUNCA o objeto inteiro. O objeto
+        `selectedCard` e derivado a cada renderizacao buscando no array
+        `cards` (que vem via prop e e sempre a versao mais atual do estado
+        global). Se fosse guardado o objeto direto no `useState`, ele ficaria
+        "congelado" na versao de quando foi selecionado, e alteracoes
+        posteriores (como adicionar item no checklist) nao apareceriam na
+        tela ate o usuario fechar e reabrir o card.
+
+  21-23 const usedPercent = selectedCard
+          ? Math.min(100, Math.round((selectedCard.spent / selectedCard.limit) * 100))
+          : 0
+     -> percentual de uso do LIMITE DO CARTAO SELECIONADO (limitado a 100%
+        mesmo que o gasto ultrapasse o limite), usado na barrinha de
+        progresso do detalhe do cartao.
+
+  25-28 limitTotal / spentTotal / overallUsedPercent
+     -> somas de TODOS os cartoes (nao so o selecionado): usadas no cabecalho
+        do painel para mostrar "Limite Disponivel" geral e a barra de
+        progresso agregada.
+
+  30-33 function handleDelete() { onDeleteCard(selectedCard.id); setSelectedCardId(null) }
+     -> exclui o cartao selecionado e fecha a visualizacao de detalhe.
+
+  35-43 const cardFacePreview = selectedCard && ( ... )
+     -> JSX pre-computado com a "face" do cartao selecionado (reaproveitado
+        tanto no modal quanto no bloco standalone, evitando duplicar o JSX).
+        A classe extra muda conforme o modo: `card-detail-face` (layout lado
+        a lado na pagina Cartoes) ou `modal-card-preview` (empilhado dentro
+        do modal da Visao Geral).
+
+  45-75 const cardDetailInfo = selectedCard && ( ... )
+     -> bloco com as 3 estatisticas do cartao (Valor gasto atual, Limite
+        disponivel = limit - spent, Limite total), a barra de progresso do
+        USO daquele cartao especifico, e os botoes "Fechar"/"Excluir cartao".
+        O texto do botao "Fechar" muda para "Fechar detalhes" quando
+        standalone (contexto da pagina Cartoes).
+
+  77-163 return ( ... ) - a renderizacao principal, em 3 blocos <section>:
+
+    79-140 <section className="panel cards-panel"> (SEMPRE renderizado)
+       - cabecalho com titulo "Meus Cartoes" e a caixa `.limit-box` mostrando
+         "Limite Disponivel" (limitTotal - spentTotal) + barra de progresso +
+         legenda "gasto de total (%)".
+       - `.cards-grid`: mapeia todos os cartoes como `<article>` clicaveis
+         (com suporte a teclado via `onKeyDown` para Enter/Espaco, e atributos
+         de acessibilidade `role="button"`/`tabIndex`), cada um renderizando
+         `<CreditCardFace card={card} />`.
+       - `.add-card-tile`: botao extra do mesmo tamanho de um cartao, com um
+         icone de "+", que chama `onAddCard` (abre o modal Novo Cartao).
+       - Se houver `selectedCard` E NAO for standalone (ou seja, estamos na
+         Visao Geral), mostra o detalhe DENTRO DE UM MODAL (`<Modal>`).
+
+    142-149 <section className="panel cards-panel"> (SO em modo standalone)
+       - mostra o mesmo `cardFacePreview` + `cardDetailInfo`, mas como um
+         BLOCO FIXO na propria pagina (nao um modal flutuante) - e esse o
+         comportamento pedido explicitamente para a pagina "Meus Cartoes".
+
+    151-160 <section className="panel cards-panel"> (SO em modo standalone,
+       quando ha um cartao selecionado)
+       - renderiza `<CardChecklist>` (lista de compras daquele cartao),
+         repassando `items={selectedCard.checklist || []}` e as 3 funcoes de
+         callback (adicionar/editar/excluir item), cada uma ja "amarrada" ao
+         `selectedCard.id` correto via closures nas arrow functions.
+
+================================================================================
+ 9. src/components/CardChecklist.jsx
+================================================================================
+Lista de compras/itens vinculada a um cartao especifico.
+
+   4  export function CardChecklist({ items, onEdit, onDelete, onAdd }) {
+   7-17 cabecalho com titulo "Lista de Compras", descricao, e botao
+        "Adicionar" (chama `onAdd`, que abre o modal de novo item ja
+        associado ao cartao correto).
+
+  19-20 if (items.length === 0) -> mostra mensagem "Nenhum item adicionado
+        ainda." em vez da lista.
+
+  22-58 <ul className="expense-list"> items.map((item) => (
+     -> para cada item:
+        24-27 <label><span>{item.name}</span></label>
+           -> so o nome (o checkbox foi removido nesta sessao a pedido do
+              usuario, junto com toda a logica de "marcar como concluido").
+        28-38 bloco de valor:
+           -> SE for parcelado (`item.installment && item.installments > 0`):
+              mostra uma "pilula" com o numero de parcelas (ex: "10X") e o
+              valor MENSAL calculado na hora (`item.amount / item.installments`
+              formatado como moeda, seguido de "/mes"). Repare que aqui e
+              feita a divisao NOVAMENTE (o item so guarda o TOTAL) - e assim
+              que a interface sempre mostra o valor "por mes" mesmo o dado
+              armazenado sendo o total da compra.
+           -> SE NAO for parcelado: mostra o valor total normalmente.
+        39-46 / 47-54 botoes de editar (`onEdit(item)`) e excluir
+           (`onDelete(item.id)`), cada um com um icone SVG e `aria-label`
+           para acessibilidade.
+
+================================================================================
+ 10. src/components/modals/AddChecklistItemModal.jsx  e
+     src/components/modals/EditChecklistItemModal.jsx
+================================================================================
+Esses dois arquivos sao quase identicos em estrutura (um cria, outro edita) -
+explicados juntos.
+
+   4-17 Props recebidas: name, amount, installment, installments,
+        installmentAmount, e as respectivas funcoes on*Change, mais onCancel
+        e onSubmit.
+
+  18-19 const installmentsCount = Number(installments) || 0
+        const installmentValue = Number(installmentAmount) || 0
+     -> conversao segura de string (o que vem dos inputs) para numero,
+        usando `|| 0` como fallback se o campo estiver vazio/invalido.
+
+  20-23 const totalPreview = installment && installmentsCount > 0 && installmentValue > 0
+          ? `Total da compra: ${formatCurrency(installmentsCount * installmentValue)}`
+          : null
+     -> IMPLEMENTACAO MAIS RECENTE: calcula em tempo real (a cada
+        renderizacao, enquanto o usuario digita) o TOTAL da compra
+        multiplicando numero de parcelas x valor de cada parcela, e monta a
+        string de preview. So mostra o preview se todos os 3 requisitos
+        forem verdadeiros (parcelado, parcelas > 0, valor > 0) - assim nao
+        aparece um "Total da compra: R$ 0,00" enquanto os campos ainda estao
+        vazios.
+
+  30-37 <input> do nome do item ("Ex: Fone de ouvido" / autoFocus).
+
+  38-56 bloco "Compra parcelada?": dois botoes tipo toggle (Nao/Sim), cada um
+        aplicando a classe `selected` conforme o valor atual de `installment`,
+        chamando `onInstallmentChange(false)` ou `onInstallmentChange(true)`.
+
+  59-80 renderizacao condicional dos campos financeiros:
+        SE `installment` for true:
+          - input "Numero de parcelas" (numero inteiro, minimo 2)
+          - input "Valor da parcela (R$)" (NOVO - o usuario digita o valor de
+            UMA parcela, nao mais o total da compra)
+          - paragrafo com o preview do total calculado (`totalPreview`),
+            SO aparece se houver valor calculado.
+        SE `installment` for false:
+          - input unico "Valor (R$)" (comportamento original, sem parcelamento)
+
+  92-104 (Add) / 92-103 (Edit) botoes "Cancelar" / "Adicionar" ou "Salvar"
+        (desabilitado se o nome estiver vazio, via `disabled={!name.trim()}`).
+
+Diferenca entre os dois arquivos: apenas os textos ("Novo item" vs "Editar
+item", "Adicione um item..." vs "Altere o nome e o valor...", "Adicionar" vs
+"Salvar") - a logica de calculo e os campos sao identicos.
+
+================================================================================
+ 11. src/components/ExpensesPanel.jsx
+================================================================================
+Lista de despesas fixas - usada tanto como widget compacto na Visao Geral
+quanto como pagina completa "Despesas Fixas".
+
+   5-9  export const fixedExpenses = [ ... ]
+     -> dados iniciais: Aluguel (pago, R$1200), Internet (pago, R$120),
+        Energia (nao pago, R$180).
+
+  11  export function ExpensesPanel({ expenses, onToggle, onAddClick, onEdit,
+        onDelete, standalone }) {
+
+  12-47 const list = ( <ul className="expense-list ..."> expenses.map(...) )
+     -> para cada despesa: um checkbox (`checked={expense.paid}`, chama
+        `onToggle(expense.id)` ao clicar), o nome (com risco/estilo
+        `.expense-paid` quando pago), e a direita: SE standalone, o valor em
+        R$; sempre, uma "pilula" PAGO/PENDENTE (classe `success`/`warning`);
+        e os botoes de editar/excluir.
+
+  49-67 if (standalone) -> retorna a versao PAGINA COMPLETA: um `<section
+        className="panel cards-panel">` com cabecalho "Despesas Fixas" +
+        botao "Adicionar" (`onAddClick`), seguido da lista.
+
+  69-80 senao -> retorna a versao WIDGET (compacta), usada dentro da grade de
+        widgets da Visao Geral: um `<article className="panel widget">` com
+        cabecalho menor e um botao "ADICIONAR" no estilo de badge.
+
+================================================================================
+ 12. src/pages/OverviewPage.jsx  (+ OverviewPage.css)
+================================================================================
+Pagina "Visao Geral" - primeira tela do dashboard.
+
+   7-13 export const summaryActions = [ ... ]
+     -> os 5 botoes de acao do hero card, cada um com id, label e um "tipo"
+        de icone (`icon: 'plus' | 'wallet' | 'card' | 'details' | 'sum'`) que
+        e resolvido dinamicamente pelo componente `<ActionIcon type={...}/>`
+        (definido em icons.jsx).
+
+  15-32 Props: recebe TUDO que a pagina precisa (ja calculado/preparado pelo
+        DashboardLayout): dados do hero (heroLabel/heroValue/heroMode),
+        callbacks (onEditTotal/onSummaryAction), dados/callbacks de cartoes
+        e de despesas, e os widgets customizados.
+
+  35-38 <header className="page-header"> titulo "Visao Geral" + subtitulo.
+
+  40-72 <section className="hero-card">
+     - `.hero-top`: a esquerda, o rotulo (`heroLabel`, ex: "VALOR TOTAL DE
+       GASTOS") e o valor grande formatado (`heroValue`); a direita, o botao
+       de lapis (`onEditTotal`) - que SO aparece quando `heroMode === 'geral'`
+       (nao faz sentido editar manualmente um valor que e SOMA calculada,
+       como em modo 'expenses'/'cards').
+     - `.action-row`: os 5 botoes de `summaryActions`, cada um chamando
+       `onSummaryAction(action.id)` ao ser clicado.
+
+  74  <CardsPanel cards={cardsState} onAddCard={onAddCard} onDeleteCard={onDeleteCard} />
+     -> aqui o CardsPanel e usado SEM a prop `standalone` (portanto `undefined`
+        / falsy) e sem as props do checklist - na Visao Geral, o detalhe do
+        cartao aparece em MODAL (nao embutido na pagina), e nao ha checklist
+        visivel aqui (a lista de compras so existe na pagina "Meus Cartoes").
+
+  76-124 <section className="widgets-grid">
+     - `<ExpensesPanel standalone={false-implicito}>`: versao widget
+       compacta das despesas fixas.
+     - dois `<article>` de exemplo fixos ("Atividade 2", "Atividade 3"),
+       sem interatividade real - sao apenas conteudo de demonstracao do
+       layout em grade.
+     - `customWidgets.map(...)`: renderiza os widgets criados pelo usuario,
+       cada um com um botao de fechar (X) que chama `onRemoveWidget`.
+
+OverviewPage.css: define o layout do cabecalho da pagina (`.page-header`), o
+hero card (`.hero-card`, `.hero-top`, `.eyebrow` = rotulo pequeno, `.hero-value`
+= numero grande), o botao de lapis (`.icon-button`), a fileira de botoes de
+acao (`.action-row`) e a grade de widgets em 3 colunas (`.widgets-grid`,
+`.widget-icon` com variantes de cor `.aqua`/`.green`).
+
+================================================================================
+ 13. src/pages/CardsPage.jsx
+================================================================================
+   3-22 export function CardsPage({ cardsState, onAddCard, onDeleteCard,
+         onAddChecklistItem, onEditChecklistItem, onDeleteChecklistItem }) {
+          return (
+            <CardsPanel
+              cards={cardsState}
+              ...
+              standalone
+            />
+          )
+        }
+     -> wrapper "fino": apenas repassa as props recebidas para o CardsPanel,
+        acrescentando a prop `standalone` (equivalente a `standalone={true}`),
+        que ativa o layout de blocos separados (detalhe + checklist na
+        propria pagina, em vez de modal).
+
+================================================================================
+ 14. src/pages/ExpensesPage.jsx
+================================================================================
+   3-14 export function ExpensesPage({ expenses, onToggleExpense, onAddExpenseClick,
+         onEditExpense, onDeleteExpense }) {
+          return (
+            <ExpensesPanel
+              expenses={expenses}
+              onToggle={onToggleExpense}
+              onAddClick={onAddExpenseClick}
+              onEdit={onEditExpense}
+              onDelete={onDeleteExpense}
+              standalone
+            />
+          )
+        }
+     -> mesmo padrao de wrapper fino: renomeia as props para o formato que o
+        ExpensesPanel espera e forca `standalone`, ativando a versao pagina
+        completa (com valores em R$ visiveis e lista com altura maior).
+
+================================================================================
+ 15. src/components/icons.jsx
+================================================================================
+Biblioteca de icones SVG usados em varios lugares do app. Cada funcao retorna
+um `<svg>` desenhado a mao com `<path>`/`<rect>`/`<circle>`, usando a classe
+`.icon-stroke` (traco uniforme herdando `currentColor`) - exceto
+`ContactlessIcon`, que usa a classe propria `.contactless-icon` (usada dentro
+do cartao, onde a cor de fundo e diferente).
+
+  EditIcon        -> icone de lapis (editar)
+  WalletIcon      -> icone de carteira
+  TrendIcon       -> icone de grafico/tendencia
+  PlusIcon        -> icone de "+"
+  DetailsIcon     -> circulo com "i" (detalhes/info)
+  SumIcon         -> icone de soma (seta em zigue-zague, estilo "sigma")
+  CloseIcon       -> "X" (fechar)
+  TrashIcon       -> lixeira (excluir)
+  CardTinyIcon    -> retangulo simulando um cartao pequeno
+  ContactlessIcon -> ondas de sinal (usado no chip do cartao)
+
+  97-103 export function ActionIcon({ type }) {
+           if (type === 'plus') return <PlusIcon />
+           if (type === 'wallet') return <WalletIcon />
+           if (type === 'card') return <CardTinyIcon />
+           if (type === 'sum') return <SumIcon />
+           return <DetailsIcon />
+         }
+     -> "fabrica" de icones usada pelos botoes de acao do hero card
+        (`summaryActions`): recebe uma string (`type`) e devolve o
+        componente de icone correspondente, com `DetailsIcon` como padrao
+        (fallback) para qualquer tipo nao mapeado.
+
+================================================================================
+ 16. src/components/modals/AddCardModal.jsx
+================================================================================
+   3-10 export const CARD_COLOR_OPTIONS = [ ... ]
+     -> as 6 cores/opcoes de fundo disponiveis para um cartao (Preto, Azul,
+        Roxo, Vermelho, Laranja, Verde), cada uma referenciando uma classe
+        CSS (`card-dark`, `card-blue`, etc. - definidas em CardsPanel.css).
+
+  12-27 Props: brand, network, lastDigits, limit, spent, color e os
+        respectivos on*Change, onCancel, onSubmit.
+
+  34-41 input "Nome do cartao" (texto livre, ex: Nubank).
+  42-48 input "Bandeira" (texto livre, ex: Visa, Mastercard).
+  49-57 input "Ultimos 4 digitos": usa `inputMode="numeric"`,
+        `maxLength={4}` e, no onChange, `event.target.value.replace(/\D/g, '').slice(0, 4)`
+        -> remove qualquer caractere que NAO seja digito (`\D` = "not
+        digit") e corta em 4 caracteres, garantindo que o campo sempre
+        contenha, no maximo, 4 digitos numericos.
+  58-66 input "Limite total (R$)" (numero, step 0.01, min 0).
+  67-75 input "Valor gasto atual (opcional)" (numero, step 0.01, min 0).
+  76-86 `.color-swatch-row`: mapeia `CARD_COLOR_OPTIONS`, renderizando um
+        circulo colorido por opcao (a cor real vem da classe CSS aplicada,
+        ex: `.card-dark`); o circulo selecionado ganha a classe `selected`
+        (borda destacada).
+  87-98 botoes "Cancelar"/"Adicionar" - o de adicionar so fica habilitado
+        se `brand` e `network` nao estiverem vazios E `lastDigits` tiver
+        exatamente 4 caracteres.
+
+================================================================================
+ 17. src/components/modals/AddExpenseModal.jsx / EditExpenseModal.jsx
+================================================================================
+Formularios simples, praticamente identicos entre si (um cria, outro edita):
+campo de texto "nome" + campo numerico "Valor (R$)" + botoes Cancelar/
+Adicionar (ou Salvar). O botao de confirmar so habilita se o nome nao
+estiver vazio (`disabled={!name.trim()}`). Nenhuma logica de calculo aqui -
+toda a matematica (impacto no totalValue, etc.) acontece no DashboardLayout.
+
+================================================================================
+ 18. src/components/modals/AddWidgetModal.jsx
+================================================================================
+Formulario para criar um "card" customizado na Visao Geral: campo de texto
+"Titulo" (obrigatorio) + `<textarea>` "Descricao" (opcional, classe
+`.modal-textarea` para altura maior/redimensionavel). Botao "Adicionar"
+desabilitado se o titulo estiver vazio.
+
+================================================================================
+ 19. src/components/modals/EditTotalModal.jsx
+================================================================================
+Formulario minimo: um unico input numerico para editar o "Valor Total de
+Gastos" manual. Botao "Salvar" desabilitado se o campo estiver vazio OU o
+numero for negativo (`value.trim() === '' || Number(value) < 0`).
+
+================================================================================
+ 20. src/components/modals/DetailsModal.jsx
+================================================================================
+Modal SOMENTE LEITURA (nao tem formulario) que resume as principais
+metricas financeiras, cada uma em um "mini card" (`.detail-card`):
+  - Valor total de gastos      -> `totalValue`
+  - Limite total dos cartoes   -> `cardsLimitTotal` (prop DINAMICA - antes
+    era um texto fixo "R$ 6.600,00"; hoje e sempre a soma real e atualizada
+    dos limites de todos os cartoes cadastrados)
+  - Cartoes cadastrados        -> `cardsCount`
+  - Despesas fixas pagas       -> `paidCount`
+  - Despesas fixas pendentes   -> `pendingCount` (ocupa a largura toda via
+    classe `.detail-card-wide`, pois e o ultimo item numa grade de 2
+    colunas com numero impar de itens)
+Termina com um unico botao "Fechar" (`onClose`).
+
+================================================================================
+ 21. src/components/modals/LogoutModal.jsx
+================================================================================
+Modal de confirmacao simples: pergunta "Sair da sua conta?" com dois
+botoes - "Cancelar" (`onCancel`, fecha sem fazer nada) e "Sim, sair"
+(`onConfirm`, estilo `.pill-button-danger` em vermelho, aciona
+`setLoggedOut(true)` no DashboardLayout).
+
+================================================================================
+ 22. src/components/Modal.css
+================================================================================
+Estilos compartilhados por TODOS os modais.
+
+  `.modal-backdrop`     -> camada de fundo escurecido (`position: fixed`,
+                           cobre a tela inteira via `inset: 0`), com
+                           `backdrop-filter: blur(4px)` (desfoca o conteudo
+                           atras) e centraliza o conteudo com CSS Grid
+                           (`display: grid; place-items: center`).
+  `.modal-card`         -> a "caixa branca" do modal em si: largura maxima
+                           360px, cantos arredondados, sombra, texto
+                           centralizado.
+  `.modal-card h2`/`p`  -> espacamento do titulo e do paragrafo descritivo.
+  `.modal-actions`      -> linha flex para os botoes de acao, cada botao
+                           ocupando espaco igual (`flex: 1`).
+  `.pill-button-danger` -> variante vermelha (para acoes destrutivas, ex:
+                           excluir/sair).
+  `.pill-button-primary`-> variante verde (para acoes de confirmacao/salvar).
+  `.pill-button:disabled` -> opacidade reduzida + cursor bloqueado quando
+                           desabilitado.
+  `.modal-card-wide`    -> variante mais larga (420px) e com texto alinhado
+                           a esquerda, usada por quase todos os formularios
+                           (que tem varios campos, diferente do Logout que
+                           usa o `.modal-card` padrao/estreito).
+  `.modal-input`        -> estilo padrao de todos os inputs de formulario
+                           dos modais (fundo cinza claro, borda sutil,
+                           cantos arredondados, margem inferior para
+                           espacar do proximo campo).
+  `.modal-textarea`     -> altura minima maior e redimensionavel
+                           verticalmente (usado so no AddWidgetModal).
+  `.color-swatch-row`/`.color-swatch` -> a fileira de bolinhas coloridas de
+                           selecao de cor do cartao; `.selected` desenha uma
+                           borda escura ao redor da cor escolhida.
+  `.toggle-field*`/`.toggle-option*` -> os botoes tipo "toggle" Sim/Nao
+                           (usados na pergunta "Compra parcelada?"); a opcao
+                           `.selected` ganha fundo azul e texto em negrito
+                           para indicar qual esta ativa.
+  `.installment-preview`-> texto verde, em negrito, alinhado a direita,
+                           usado para mostrar "Total da compra: R$ X" nos
+                           modais de checklist parcelado (feature mais
+                           recente).
+  `.details-list`/`.details-grid`/`.detail-card*` -> estilos usados pelo
+                           antigo layout em lista e pelo NOVO layout em
+                           grade de "mini-cards" do modal de Detalhes
+                           financeiros e do bloco de detalhe do cartao
+                           (Valor gasto/Limite disponivel/Limite total).
+
+================================================================================
+ 23. src/components/CardsPanel.css
+================================================================================
+  `.cards-panel`           -> padding interno do painel.
+  `.checklist-empty`       -> estilo do texto "Nenhum item adicionado ainda."
+  `.limit-box`/`.limit-summary` -> a caixa do cabecalho com "Limite
+                           Disponivel" + valor + barra.
+  `.limit-progress`/`.limit-progress-fill` -> a barra de progresso em si:
+                           um contêiner com `overflow: hidden` e um `<span>`
+                           interno cuja LARGURA (definida via `style` inline
+                           no JSX, ex: `width: 58%`) representa visualmente o
+                           percentual gasto; o valor `58%` aqui no CSS e
+                           apenas um placeholder/default - na pratica o JSX
+                           sempre sobrescreve com o `usedPercent`/
+                           `overallUsedPercent` calculado.
+  `.limit-progress-caption` -> texto pequeno abaixo da barra, alinhado a
+                           direita (a legenda "R$X de R$Y (Z%)" implementada
+                           a pedido do usuario).
+  `.cards-grid`            -> grade responsiva dos cartoes (`repeat(auto-fit,
+                           minmax(240px, 320px))` = quantas colunas couberem,
+                           cada cartao entre 240px e 320px de largura).
+  `.credit-card`           -> aparencia do cartao: proporcao real de cartao
+                           de credito (`aspect-ratio: 85.6 / 54`, a proporcao
+                           padrao ISO/IEC 7810 ID-1), cantos arredondados,
+                           sombra, efeito de elevacao no hover
+                           (`transform: translateY(-3px)`).
+  `.add-card-tile`         -> o "cartao fantasma" tracejado com o icone de
+                           "+", do mesmo tamanho que um cartao real, para
+                           adicionar um novo.
+  `.credit-card::before`   -> pseudo-elemento que desenha um brilho/reflexo
+                           diagonal sobre o cartao (efeito puramente
+                           estetico, imitando o brilho do plastico).
+  `.card-dark`/`.card-orange`/`.card-green`/`.card-blue`/`.card-purple`/
+  `.card-red` -> as 6 paletas de cor de fundo disponiveis (cada uma um
+                           gradiente diagonal de 3 tons).
+  `.credit-card-top`/`.credit-card-footer` -> layout flex (itens nas
+                           extremidades) do topo e do rodape do cartao.
+  `.card-chip-wrap`/`.card-chip` -> o "chip dourado" do cartao, desenhado
+                           com gradientes lineares repetidos (`repeating-
+                           linear-gradient`) simulando os sulcos metalicos
+                           de um chip real.
+  `.contactless-icon`      -> tamanho/cor do icone de pagamento por
+                           aproximacao.
+  `.card-brand`/`.card-network` -> nome do cartao e bandeira, alinhados a
+                           direita, com letras espacadas (`letter-spacing`).
+  `.credit-card-number`    -> o numero mascarado, com letras bem espacadas
+                           simulando relevo de cartao real.
+  `.credit-card-meta`/`.card-label` -> os rotulos pequenos "CARD HOLDER" /
+                           "VALID THRU".
+  `.card-footer-right`/`.mini-chip` -> validade + um segundo chip
+                           decorativo menor no rodape.
+  `.modal-card-cardface`   -> variante do modal (mais larga, 460px) usada
+                           quando exibe o cartao dentro de um modal (na
+                           Visao Geral).
+  `.card-detail-panel`     -> layout lado a lado (flex-wrap) do cartao +
+                           informacoes na pagina "Meus Cartoes" (modo
+                           standalone).
+  `.card-detail-face`/`.card-detail-info` -> tamanhos flexiveis de cada
+                           metade desse layout lado a lado.
+
+================================================================================
+ 24. src/components/ExpensesPanel.css
+================================================================================
+  `.widget-badge` (+ `.neutral`/`.success`/`.warning`) -> as "pilulas" de
+                           status (PAGO=verde, PENDENTE=laranja, ou neutra
+                           cinza usada em outros lugares como "10X").
+  `.expense-list`          -> lista vertical com rolagem (`overflow-y: auto`,
+                           altura maxima 220px no modo widget compacto).
+  `.expense-list-standalone` -> versao da pagina completa, com altura maxima
+                           maior (420px), pois ha mais espaco disponivel.
+  `.expense-list li`/`label` -> alinhamento flex de cada linha da lista
+                           (nome a esquerda, acoes a direita).
+  `.expense-actions`       -> agrupa valor + badge + botoes de editar/excluir
+                           a direita de cada linha.
+  `.expense-amount`        -> estilo do valor monetario exibido.
+  `.expense-edit-button`/`.expense-delete-button` -> botoes circulares
+                           pequenos de icone, com destaque de cor (cinza no
+                           hover normal, vermelho no hover do botao de
+                           excluir).
+  `.expense-paid`          -> texto riscado (`text-decoration: line-through`)
+                           aplicado ao nome de uma despesa ja paga.
+
+================================================================================
+ 25. src/pages/OverviewPage.css
+================================================================================
+  `.page-header`           -> cabecalho centralizado da pagina ("Visao
+                           Geral" + subtitulo).
+  `.hero-card`/`.hero-top` -> o card principal grande no topo da Visao
+                           Geral, com o valor e o botao de editar lado a
+                           lado.
+  `.eyebrow`               -> o rotulo pequeno acima do valor grande (ex:
+                           "VALOR TOTAL DE GASTOS"), com letras bem
+                           espacadas e cor suave.
+  `.hero-value`            -> o numero gigante, com `clamp()` para ser
+                           responsivo (tamanho de fonte varia conforme a
+                           largura da tela, entre 2.8rem e 4.2rem).
+  `.icon-button`           -> botao circular do lapis de edicao.
+  `.action-row`            -> fileira flexivel dos 5 botoes de acao,
+                           quebrando linha em telas menores (`flex-wrap`).
+  `.widgets-grid`          -> grade de 3 colunas iguais para os widgets da
+                           Visao Geral (Despesas Fixas + Atividade 2/3 +
+                           widgets customizados).
+  `.widget-icon` (+ `.aqua`/`.green`) -> os icones circulares coloridos no
+                           cabecalho de cada widget.
+
+================================================================================
+ 26. src/styles.css  (estilos globais)
+================================================================================
+  `@import` do Google Fonts        -> carrega a fonte "Manrope" usada em
+                           todo o app.
+  `:root { ... }`         -> variaveis CSS globais (`--surface`, `--line`,
+                           `--text-soft`, `--shadow-lg/md`, `--green`, etc.)
+                           reutilizadas em varios arquivos CSS via `var(...)`,
+                           alem do fundo geral da pagina (gradiente suave).
+  `* { box-sizing: border-box }` -> padrao de dimensionamento de caixa (o
+                           padding/borda entram DENTRO da largura definida,
+                           evitando calculos manuais).
+  `html, body, #root { min-height: 100% }` / `body { margin: 0 }` -> reset
+                           basico para o app ocupar a tela inteira sem
+                           margens indesejadas do navegador.
+  `button, input, textarea { font: inherit }` -> forca esses elementos a
+                           usarem a mesma fonte do resto da pagina (por
+                           padrao, navegadores usam fonte de sistema neles).
+  `button { border: 0; cursor: pointer }` -> remove a borda padrao de
+                           botao e sempre mostra o cursor de "mao".
+  `.app-shell`             -> o layout raiz: grid de 2 colunas (sidebar +
+                           conteudo), com `perspective: 1800px` (cria o
+                           efeito 3D do fundo decorativo - E essa
+                           propriedade que motivou o uso de Portal no
+                           Modal.jsx, ja documentado acima) e `isolation:
+                           isolate` (cria um novo contexto de empilhamento
+                           isolado para o z-index interno).
+  `.scene-background`/`.scene-orb`/`.scene-plane`/`.scene-grid` (+
+  `.orb-one/two/three`, `.plane-one/two`) -> todo o cenario de fundo
+                           decorativo: bolhas (orbs) esfericas com gradiente
+                           e sombra interna simulando volume, um "grid"
+                           (grade) em perspectiva simulando um chao 3D, e
+                           "planos" de vidro fosco (`backdrop-filter: blur`)
+                           flutuando - tudo posicionado com `transform:
+                           translateZ/rotateX/rotateY` para dar profundidade
+                           dentro do `perspective` do `.app-shell`. E
+                           puramente decorativo, sem nenhuma logica.
+  `.sidebar`/`.sidebar-expanded` -> a barra lateral flutuante (fundo
+                           semitransparente com blur), com transicao suave de
+                           largura entre o estado recolhido (112px) e
+                           expandido (236px) ao passar o mouse.
+  `.sidebar-top`/`.brand-mark`/`.brand-image`/`.brand-copy` -> a area do
+                           logo no topo da sidebar; `.brand-copy` comeca
+                           com `width: 0; opacity: 0` e so aparece
+                           (`.visible`) quando a sidebar esta expandida -
+                           essa mesma tecnica e usada em `.sidebar-label`.
+  `.sidebar-nav`/`.sidebar-link`/`.sidebar-logout` -> os botoes do menu
+                           (tamanho fixo 56x52px quando recolhido, cor de
+                           destaque quando `.active`, leve elevacao no
+                           hover).
+  Bloco `.sidebar-expanded .sidebar-link/.sidebar-logout/.sidebar-top` ->
+                           regras que so se aplicam quando a sidebar esta
+                           expandida, ajustando alinhamento (icone + texto
+                           lado a lado, ocupando a largura toda).
+  `.icon-stroke`           -> estilo base compartilhado por quase todos os
+                           icones SVG do app (tamanho 22x22px, sem
+                           preenchimento, so o traco). NOTA TECNICA: as
+                           propriedades `strokeWidth`, `strokeLinecap` e
+                           `strokeLinejoin` aqui estao escritas em camelCase,
+                           que e a sintaxe usada em objetos de estilo INLINE
+                           do React/JS, NAO em CSS puro - em um arquivo .css
+                           real elas deveriam ser `stroke-width`, `stroke-
+                           linecap` e `stroke-linejoin` (kebab-case). Isso e
+                           uma inconsistencia PRE-EXISTENTE no projeto
+                           (gera apenas avisos inofensivos do compilador
+                           esbuild durante o build, sem quebrar a
+                           renderizacao, pois o navegador ignora
+                           propriedades CSS que nao reconhece) - foi
+                           deixada de fora do escopo das tarefas realizadas
+                           ate agora por nao ter sido solicitada.
+  `.dashboard`             -> container da area de conteudo principal
+                           (coluna direita do grid), com `z-index: 1` para
+                           ficar acima do fundo decorativo.
+  `.hero-card, .panel`     -> a aparencia base compartilhada por TODOS os
+                           "cartoes de painel" do app (fundo semi-
+                           transparente com blur, borda clara, sombra) -
+                           e a partir dessa classe generica que os paineis
+                           especificos (`.cards-panel`, `.widget`, etc.)
+                           herdam a aparencia de "vidro".
+  `.pill-button`           -> o estilo base de botao em formato de pilula
+                           usado em quase todos os botoes de acao do app.
+  `.panel-heading`/`.widget-header` -> layout do cabecalho padrao de
+                           qualquer painel (titulo+descricao a esquerda,
+                           acao a direita).
+  `.widget`                -> tamanho minimo e padding dos cards de widget
+                           da grade da Visao Geral.
+  `.logout-screen`         -> tela central exibida quando `loggedOut` e
+                           true.
+  Media queries (`@media max-width: 1080px` e `720px`) -> ajustes
+                           responsivos: em telas medias, o layout vira 1
+                           coluna (sidebar acima do conteudo), esconde os
+                           elementos decorativos mais pesados
+                           (`.scene-grid`,`.scene-plane`) e a sidebar sempre
+                           mostra os textos (nao depende mais do hover, que
+                           nao existe em touch); em telas pequenas, reduz
+                           paddings e empilha cabecalhos/listas na vertical.
+
+================================================================================
+ RESUMO DAS REGRAS DE NEGOCIO MAIS IMPORTANTES
+================================================================================
+1. `card.spent` (gasto atual) SOBE imediatamente pelo VALOR TOTAL de uma
+   compra assim que ela e adicionada ao checklist, mesmo que seja parcelada
+   - isso reflete o comportamento real de um cartao de credito (o limite e
+   comprometido no ato da compra, mesmo a fatura chegando parcelada).
+2. `installments` (numero de parcelas) e apenas METADADO de exibicao - usado
+   so para mostrar "10X - R$150/mes" na lista, nunca influencia o total
+   somado ao limite.
+3. O usuario digita o VALOR DA PARCELA manualmente (feature mais recente); o
+   TOTAL da compra e sempre DERIVADO (`parcelas x valor_da_parcela`), tanto
+   ao criar quanto ao editar um item.
+4. Toda alteracao no checklist de um cartao (adicionar/editar/excluir item)
+   passa por `syncCardBillAmount`, que mantem a despesa "Fatura - <cartao>"
+   sempre igual ao `spent` real do cartao, aplicando a diferenca (delta) em
+   vez de recalcular tudo do zero.
+5. "Limite Disponivel" (numero grande exibido no cabecalho de Meus Cartoes)
+   = soma de todos os limites - soma de todos os gastos; DIMINUI a cada novo
+   gasto (comportamento pedido explicitamente pelo usuario, em vez de
+   mostrar um limite total fixo).
+6. Estado de selecao de cartao usa sempre um ID (nunca o objeto inteiro) para
+   garantir que a interface reflita o estado mais recente apos qualquer
+   atualizacao.
+
+================================================================================
+ FIM DO DOCUMENTO
+================================================================================

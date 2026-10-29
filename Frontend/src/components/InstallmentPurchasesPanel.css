@@ -1,0 +1,11 @@
+.installment-purchase-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.installment-purchase-info span {
+  font-size: 0.72rem;
+  color: var(--text-soft);
+}

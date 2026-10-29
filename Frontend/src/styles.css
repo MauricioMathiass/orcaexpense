@@ -1,0 +1,618 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+
+:root {
+  font-family: 'Manrope', sans-serif;
+  color: #1f2937;
+  background:
+    radial-gradient(circle at top left, rgba(191, 219, 254, 0.45), transparent 28%),
+    linear-gradient(135deg, #edf1f7 0%, #f5f7fb 42%, #eef2f7 100%);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  --shell-gap: 24px;
+  --surface: rgba(255, 255, 255, 0.82);
+  --surface-strong: #ffffff;
+  --line: rgba(148, 163, 184, 0.18);
+  --text-soft: #7b8190;
+  --shadow-lg: 0 22px 55px rgba(15, 23, 42, 0.08);
+  --shadow-md: 0 12px 28px rgba(15, 23, 42, 0.08);
+  --green: #22c55e;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  border: 0;
+  cursor: pointer;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--shell-gap);
+  padding: 18px;
+  position: relative;
+  isolation: isolate;
+  perspective: 1800px;
+}
+
+.scene-background {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.9), transparent 24%),
+    linear-gradient(135deg, #e7edf6 0%, #dce6f1 38%, #eef3f8 100%);
+}
+
+.scene-orb,
+.scene-plane,
+.scene-grid {
+  position: absolute;
+  transform-style: preserve-3d;
+}
+
+.scene-orb {
+  border-radius: 50%;
+  filter: blur(4px);
+  box-shadow:
+    inset -24px -36px 60px rgba(255, 255, 255, 0.65),
+    inset 18px 20px 40px rgba(255, 255, 255, 0.4),
+    0 30px 60px rgba(15, 23, 42, 0.12);
+}
+
+.orb-one {
+  top: -140px;
+  left: -40px;
+  width: 360px;
+  height: 360px;
+  background: radial-gradient(circle at 30% 30%, #ffffff, #d6e7ff 48%, #aecbfd 72%, #8cc6a5 100%);
+  transform: translateZ(180px) rotateX(62deg) rotateY(-18deg);
+}
+
+.orb-two {
+  top: 16%;
+  right: -120px;
+  width: 420px;
+  height: 420px;
+  background: radial-gradient(circle at 38% 35%, #ffffff, #dff7f0 42%, #84e1bc 70%, #34d399 100%);
+  transform: translateZ(120px) rotateX(58deg) rotateY(26deg);
+}
+
+.orb-three {
+  bottom: -180px;
+  left: 26%;
+  width: 520px;
+  height: 520px;
+  background: radial-gradient(circle at 50% 35%, rgba(255, 255, 255, 0.92), rgba(224, 231, 255, 0.85) 34%, rgba(191, 219, 254, 0.82) 62%, rgba(148, 163, 184, 0.4) 100%);
+  transform: translateZ(60px) rotateX(72deg) rotateY(-10deg);
+  opacity: 0.72;
+}
+
+.scene-grid {
+  inset: 8% 4% auto;
+  height: 72%;
+  border-radius: 48px;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.42) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.42) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.95), transparent 85%);
+  opacity: 0.48;
+  transform: rotateX(74deg) translateY(-18%) translateZ(-220px);
+  transform-origin: top center;
+}
+
+.scene-plane {
+  border-radius: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.08));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 18px 40px rgba(148, 163, 184, 0.16);
+  backdrop-filter: blur(8px);
+}
+
+.plane-one {
+  width: 360px;
+  height: 220px;
+  right: 14%;
+  top: 14%;
+  transform: rotateX(68deg) rotateY(-16deg) rotateZ(8deg) translateZ(30px);
+}
+
+.plane-two {
+  width: 420px;
+  height: 260px;
+  left: 8%;
+  bottom: 4%;
+  transform: rotateX(74deg) rotateY(20deg) rotateZ(-16deg) translateZ(-20px);
+  opacity: 0.7;
+}
+
+.sidebar {
+  width: 112px;
+  background: linear-gradient(180deg, rgba(225, 228, 234, 0.92), rgba(232, 235, 241, 0.88));
+  border: 1px solid rgba(255, 255, 255, 0.62);
+  border-radius: 28px;
+  box-shadow: var(--shadow-lg);
+  padding: 24px 12px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition:
+    width 220ms ease,
+    transform 220ms ease,
+    box-shadow 220ms ease;
+  overflow: hidden;
+  backdrop-filter: blur(18px);
+}
+
+.sidebar-expanded {
+  width: 236px;
+  transform: translateY(-2px);
+  align-items: stretch;
+}
+
+.sidebar-top {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 72px;
+  margin-bottom: 30px;
+}
+
+.brand-mark {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.brand-image {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  display: block;
+}
+
+.brand-copy,
+.sidebar-label {
+  opacity: 0;
+  transform: translateX(-8px);
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease;
+  pointer-events: none;
+  white-space: nowrap;
+  width: 0;
+  overflow: hidden;
+}
+
+.brand-copy.visible,
+.sidebar-label.visible {
+  opacity: 1;
+  transform: translateX(0);
+  width: auto;
+}
+
+.sidebar-label {
+  flex: 0 0 auto;
+  padding-right: 4px;
+}
+
+.brand-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.brand-copy strong {
+  font-size: 0.94rem;
+  letter-spacing: 0.08em;
+}
+
+.brand-copy span {
+  font-size: 0.56rem;
+  color: var(--text-soft);
+  letter-spacing: 0.13em;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  align-items: center;
+}
+
+.sidebar-link,
+.sidebar-logout {
+  height: 52px;
+  width: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 0;
+  border-radius: 18px;
+  color: #4b5563;
+  background: transparent;
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.sidebar-link.active {
+  background: transparent;
+  color: #1f2937;
+  box-shadow: none;
+}
+
+.sidebar-link:hover,
+.sidebar-logout:hover {
+  background: rgba(255, 255, 255, 0.62);
+  transform: translateY(-1px);
+}
+
+.sidebar-expanded .sidebar-nav {
+  align-items: stretch;
+}
+
+.sidebar-expanded .sidebar-link,
+.sidebar-expanded .sidebar-logout,
+.sidebar-expanded .sidebar-top {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.sidebar-expanded .sidebar-top {
+  min-height: auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.sidebar-expanded .brand-copy {
+  align-items: center;
+  text-align: center;
+}
+
+.sidebar-expanded .sidebar-link,
+.sidebar-expanded .sidebar-logout {
+  padding: 0 14px;
+}
+
+.sidebar-expanded .sidebar-logout {
+  justify-content: center;
+}
+
+.sidebar-logout {
+  margin-top: auto;
+}
+
+/* A gaveta (aba, fundo escurecido) só existe em telas estreitas. */
+.sidebar-backdrop,
+.sidebar-handle {
+  display: none;
+}
+
+.icon-stroke {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  strokeWidth: 1.8;
+  strokeLinecap: round;
+  strokeLinejoin: round;
+  flex: 0 0 auto;
+}
+
+.dashboard {
+  padding: 14px 8px 14px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  position: relative;
+  z-index: 1;
+}
+
+.hero-card,
+.panel {
+  background: var(--surface);
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  border-radius: 28px;
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(18px);
+}
+
+.pill-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 44px;
+  flex: 1 1 180px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f2f4f7, #e6e9ee);
+  color: #374151;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82);
+}
+
+.panel-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 22px;
+}
+
+.panel-heading h2,
+.widget-header h3 {
+  margin: 0 0 6px;
+  font-size: 1.35rem;
+}
+
+.panel-heading p,
+.widget p {
+  margin: 0;
+  color: var(--text-soft);
+  line-height: 1.55;
+}
+
+.widget {
+  min-height: 240px;
+  padding: 22px;
+}
+
+.widget-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+@media (max-width: 1080px) {
+  .app-shell {
+    grid-template-columns: minmax(0, 1fr);
+    /* `perspective` faria o menu fixed se prender ao fim da página em vez da tela. */
+    perspective: none;
+  }
+
+  :root {
+    --drawer-width: min(288px, 84vw);
+  }
+
+  .scene-grid,
+  .scene-plane {
+    display: none;
+  }
+
+  /* O menu lateral vira uma gaveta: fica escondida à esquerda e é puxada pela aba (ou aberta com um toque). */
+  .sidebar,
+  .sidebar-expanded {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 16;
+    width: var(--drawer-width);
+    padding:
+      calc(24px + env(safe-area-inset-top, 0px))
+      12px
+      calc(18px + env(safe-area-inset-bottom, 0px))
+      calc(12px + env(safe-area-inset-left, 0px));
+    border-radius: 0 28px 28px 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    box-shadow: none;
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition:
+      transform 260ms cubic-bezier(0.22, 0.8, 0.3, 1),
+      box-shadow 260ms ease,
+      visibility 0s linear 260ms;
+  }
+
+  .sidebar.is-open,
+  .sidebar.is-dragging {
+    visibility: visible;
+    box-shadow: var(--shadow-lg);
+    transition:
+      transform 260ms cubic-bezier(0.22, 0.8, 0.3, 1),
+      box-shadow 260ms ease,
+      visibility 0s;
+  }
+
+  .sidebar.is-open {
+    transform: translateX(0);
+  }
+
+  .sidebar.is-dragging {
+    transition: none;
+  }
+
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 15;
+    background: rgba(15, 23, 42, 0.38);
+    opacity: 0;
+    visibility: hidden;
+    touch-action: pan-y;
+    transition:
+      opacity 260ms ease,
+      visibility 0s linear 260ms;
+  }
+
+  .sidebar-backdrop.is-open {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 260ms ease;
+  }
+
+  .sidebar-backdrop.is-dragging {
+    visibility: visible;
+    transition: none;
+  }
+
+  .sidebar-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    top: 50%;
+    left: 0;
+    z-index: 17;
+    width: 24px;
+    height: 72px;
+    margin-top: -36px;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-left: 0;
+    border-radius: 0 16px 16px 0;
+    background: linear-gradient(180deg, rgba(225, 228, 234, 0.94), rgba(232, 235, 241, 0.9));
+    color: #4b5563;
+    box-shadow: var(--shadow-md);
+    backdrop-filter: blur(12px);
+    touch-action: none;
+    transition: transform 260ms cubic-bezier(0.22, 0.8, 0.3, 1);
+  }
+
+  /* Área de toque maior que a aba visível. */
+  .sidebar-handle::before {
+    content: '';
+    position: absolute;
+    inset: -14px -10px -14px 0;
+  }
+
+  .sidebar-handle.is-open {
+    transform: translateX(var(--drawer-width));
+  }
+
+  .sidebar-handle.is-dragging {
+    transition: none;
+  }
+
+  .sidebar-handle .icon-stroke {
+    width: 18px;
+    height: 18px;
+    transition: transform 260ms ease;
+  }
+
+  .sidebar-handle.is-open .icon-stroke {
+    transform: rotate(180deg);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sidebar,
+    .sidebar-backdrop,
+    .sidebar-handle,
+    .sidebar-handle .icon-stroke {
+      transition-duration: 0s !important;
+      transition-delay: 0s !important;
+    }
+  }
+
+  .cards-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .widgets-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .app-shell {
+    padding: 12px;
+    gap: 16px;
+  }
+
+  .scene-orb {
+    filter: blur(10px);
+  }
+
+  .dashboard {
+    padding: 0;
+  }
+
+  .widgets-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .action-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .action-row .pill-button {
+    flex: none;
+    min-width: 0;
+    padding: 6px 10px;
+    gap: 8px;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.2;
+    font-size: 0.88rem;
+  }
+
+  .hero-card,
+  .cards-panel,
+  .widget {
+    padding: 18px;
+  }
+
+  .hero-top,
+  .panel-heading,
+  .widget-header,
+  .expense-list li {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  /* Na coluna, o bloco do valor precisa ocupar a largura toda para o valor ficar centralizado no card. */
+  .hero-top {
+    align-items: stretch;
+  }
+
+  .limit-box {
+    text-align: left;
+    min-width: 0;
+  }
+}
