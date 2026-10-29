@@ -37,27 +37,47 @@ let cachedToken = null
 const toPublicUser = ({ id, name, email }) => ({ id, name, email })
 
 const MESSAGES = {
+  // Códigos que o pacote do Neon devolve (normalizados) e os originais do Better Auth.
+  invalid_credentials: 'E-mail ou senha incorretos.',
+  user_not_found: 'E-mail ou senha incorretos.',
+  user_already_exists: 'Já existe uma conta com este e-mail.',
+  email_exists: 'Já existe uma conta com este e-mail.',
+  email_address_invalid: 'Informe um e-mail válido.',
+  weak_password: `A senha deve ter pelo menos ${MIN_PASSWORD_LENGTH} caracteres.`,
+  email_not_confirmed: 'Confirme o seu e-mail para entrar. Enviamos uma mensagem para você.',
+  validation_failed: 'Dados inválidos. Confira os campos e tente de novo.',
+  over_request_rate_limit: 'Muitas tentativas. Aguarde alguns minutos.',
+  over_email_send_rate_limit: 'Muitos e-mails enviados. Aguarde alguns minutos.',
   INVALID_EMAIL_OR_PASSWORD: 'E-mail ou senha incorretos.',
-  INVALID_PASSWORD: 'E-mail ou senha incorretos.',
-  USER_NOT_FOUND: 'E-mail ou senha incorretos.',
   USER_ALREADY_EXISTS: 'Já existe uma conta com este e-mail.',
   USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: 'Já existe uma conta com este e-mail.',
   INVALID_EMAIL: 'Informe um e-mail válido.',
   PASSWORD_TOO_SHORT: `A senha deve ter pelo menos ${MIN_PASSWORD_LENGTH} caracteres.`,
-  PASSWORD_TOO_LONG: 'A senha é longa demais.',
   EMAIL_NOT_VERIFIED: 'Confirme o seu e-mail para entrar. Enviamos uma mensagem para você.',
-  INVALID_TOKEN: 'Este link venceu ou já foi usado. Peça um novo.',
 }
+
+const EXPIRED_LINK = 'Este link venceu ou já foi usado. Peça um novo.'
 
 function toAuthError(error) {
   if (error?.status === 429) {
-    return new AuthError('rate-limit', 'Muitas tentativas. Aguarde alguns minutos.')
+    return new AuthError('rate-limit', MESSAGES.over_request_rate_limit)
   }
-  const message = MESSAGES[error?.code]
-  return new AuthError(error?.code || 'unknown', message || 'Não foi possível concluir. Tente novamente.')
+  // 403 do Neon Auth = endereço do site fora dos domínios confiáveis (neon neon-auth domain add).
+  if (error?.status === 403 && !MESSAGES[error?.code]) {
+    return new AuthError('forbidden-origin', 'Este endereço do site ainda não foi autorizado no login do Neon.')
+  }
+  if (error?.status >= 500) {
+    return new AuthError('server', 'O servidor de login está com problemas. Tente novamente em instantes.')
+  }
+  return new AuthError(
+    error?.code || 'unknown',
+    MESSAGES[error?.code] || 'Não foi possível concluir. Tente novamente.',
+  )
 }
 
-// Executa uma chamada do Neon Auth e converte falhas (retornadas ou lançadas) em AuthError.
+// Executa uma chamada do Neon Auth e converte falhas em AuthError. O pacote do Neon LANÇA erros
+// quando o servidor responde com falha (senha errada, conta inexistente...): esses têm `status`.
+// Só o que não tem resposta do servidor (fetch que falhou) é falta de conexão.
 async function call(action) {
   if (!client) {
     throw new AuthError('config', 'O login não está configurado (falta VITE_NEON_AUTH_URL).')
@@ -68,6 +88,7 @@ async function call(action) {
     result = await action(client)
   } catch (caught) {
     if (caught instanceof AuthError) throw caught
+    if (typeof caught?.status === 'number') throw toAuthError(caught)
     throw new AuthError('network', 'Não foi possível conectar ao servidor. Verifique a internet.')
   }
 
@@ -101,7 +122,7 @@ export async function signUp({ name, email, password }) {
 
   if (!cleanName) throw new AuthError('invalid-name', 'Informe o seu nome.')
   if (String(password || '').length < MIN_PASSWORD_LENGTH) {
-    throw new AuthError('weak-password', MESSAGES.PASSWORD_TOO_SHORT)
+    throw new AuthError('weak-password', MESSAGES.weak_password)
   }
 
   const data = await call((auth) =>
@@ -116,7 +137,7 @@ export async function signUp({ name, email, password }) {
 
 export async function requestPasswordReset(email) {
   const normalized = String(email || '').trim().toLowerCase()
-  if (!normalized) throw new AuthError('invalid-email', MESSAGES.INVALID_EMAIL)
+  if (!normalized) throw new AuthError('invalid-email', MESSAGES.email_address_invalid)
 
   // O link do e-mail volta para esta página com ?token=...
   await call((auth) =>
@@ -126,9 +147,18 @@ export async function requestPasswordReset(email) {
 
 export async function resetPassword({ token, password }) {
   if (String(password || '').length < MIN_PASSWORD_LENGTH) {
-    throw new AuthError('weak-password', MESSAGES.PASSWORD_TOO_SHORT)
+    throw new AuthError('weak-password', MESSAGES.weak_password)
   }
-  await call((auth) => auth.resetPassword({ newPassword: password, token }))
+
+  try {
+    await call((auth) => auth.resetPassword({ newPassword: password, token }))
+  } catch (caught) {
+    // Link vencido, já usado ou adulterado.
+    if (['bad_jwt', 'validation_failed', 'invalid_credentials'].includes(caught.code)) {
+      throw new AuthError('invalid-token', EXPIRED_LINK)
+    }
+    throw caught
+  }
 }
 
 export async function getToken() {
