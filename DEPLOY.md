@@ -78,6 +78,33 @@ neon neon-auth domain add https://meu-site.netlify.app
 3. Saia e entre de novo.
 4. No Neon (SQL Editor): `select email from neon_auth."user";` mostra a conta criada.
 
+## Antes de compartilhar o link com outras pessoas
+
+O que o código já faz: cada pessoa só enxerga os próprios dados; duas telas da mesma conta não se sobrescrevem
+(a segunda recebe um aviso de conflito); a API valida o login a cada chamada. O que depende de você:
+
+1. **E-mail próprio no Neon Auth.** Hoje os e-mails (redefinição de senha) saem de `auth@mail.myneon.app`, o remetente
+   compartilhado de teste, e podem cair no spam ou ter limite. Em produção o Neon pede um e-mail próprio (SMTP, ex.: Resend):
+   `neon neon-auth config email-provider` (rode dentro de `Backend`) e o checklist em
+   https://neon.com/docs/auth/production-checklist.md. Teste "Esqueci minha senha" com uma conta real.
+2. **Confirmação de e-mail no cadastro.** Está desligada (`Require Verification: false`): qualquer pessoa cria conta com
+   e-mail falso. Para teste entre amigos tudo bem; para abrir ao público, ligue com o SMTP próprio:
+   `neon neon-auth config email-password`.
+3. **Backup.** O histórico de recuperação do seu projeto no Neon é de **6 horas**. Um apagão de dados descoberto depois disso
+   não tem volta. Se os dados importam, faça cópias periódicas (`pg_dump` pela conexão direta) ou aumente a retenção
+   (plano pago).
+4. **Primeira carga lenta.** O Render gratuito dorme após uns 15 minutos sem uso; a primeira pessoa espera até ~1 minuto
+   (o site avisa na tela). Soluções: um monitor gratuito que chame `/health` a cada 10 minutos (ex.: UptimeRobot) ou o
+   plano pago do Render.
+5. **Banco de teste e de uso real são o mesmo.** Quando você roda o app em `localhost`, ele grava no mesmo banco que o site.
+   Para separar, crie uma branch de desenvolvimento no Neon (cuidado: pelo `neon.ts`, branches novas expiram em 7 dias).
+6. **Privacidade.** São dados financeiros pessoais. Se outras pessoas vão usar, combine com elas o que é guardado e avise
+   (política de privacidade simples; LGPD se for público).
+7. **Dependências com aviso no `npm audit`.** Revisados: os avisos "críticos/altos" do Frontend são de ferramentas de
+   desenvolvimento (Vite, PostCSS) ou de código de servidor do Better Auth que roda no Neon, não no seu site; os do Backend
+   são da linha de comando do Prisma. Nenhum atinge o que roda para o usuário. Resolver exige subir versões principais
+   (Vite 8, Prisma 7); planeje como uma tarefa à parte, com testes.
+
 ## Problemas comuns
 
 | Sintoma | Causa provável |
@@ -87,3 +114,5 @@ neon neon-auth domain add https://meu-site.netlify.app
 | Erro de CORS no console | `CORS_ORIGIN` diferente do endereço real do site (confira `https`, sem barra no final) |
 | Funcionou em `localhost` e não no Netlify | faltou refazer o deploy depois de criar as variáveis `VITE_*` |
 | Link do e-mail de redefinição não abre o site | o endereço do site não está nos domínios confiáveis (passo 4) |
+| Aviso "Seus dados foram alterados em outro dispositivo" | a mesma conta foi salva em outra tela; clique em Recarregar |
+| Erro 409/500 logo depois de atualizar a API | falta aplicar a migração nova no banco (`npm run db:deploy` em `Backend`) antes de subir o código |

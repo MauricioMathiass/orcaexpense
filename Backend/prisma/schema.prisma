@@ -17,6 +17,14 @@ datasource db {
   directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
+// Versão dos dados de cada usuário. Cada gravação só vale se o cliente enviar a versão que leu;
+// assim, duas telas abertas na mesma conta não se sobrescrevem em silêncio (a segunda recebe um conflito).
+model UserState {
+  userId    String   @id
+  revision  Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
+
 // Cartão de crédito. `spent` é o gasto atual da fatura; `limit` o limite total.
 model Card {
   id         String  @id

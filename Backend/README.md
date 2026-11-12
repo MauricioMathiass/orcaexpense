@@ -44,6 +44,9 @@ Para mudar o schema: edite `prisma/schema.prisma`, gere o SQL com
 `npx dotenv -e .env.local -- prisma migrate diff --from-schema-datasource prisma/schema.prisma --to-schema-datamodel prisma/schema.prisma --script`,
 salve-o numa nova pasta em `prisma/migrations/` e rode `npm run db:deploy`.
 
+**Leia o SQL gerado antes de aplicar.** O banco do Neon traz uma tabela de exemplo (`playing_with_neon`) que não faz parte do
+schema, e o `migrate diff` propõe apagá-la (`DROP TABLE`). Apague essa linha do arquivo: a migração deve conter só o que você mudou.
+
 ## Rotas
 
 Todas exigem o cabeçalho `Authorization: Bearer <token>` e respondem JSON.
@@ -51,9 +54,14 @@ Todas exigem o cabeçalho `Authorization: Bearer <token>` e respondem JSON.
 | Rota | Descrição |
 | --- | --- |
 | `GET /health` | verificação de funcionamento (sem login) |
-| `GET /api/state` | cartões (com compras), despesas, valores de terceiros (com compras) e blocos do usuário |
-| `PUT /api/state` | substitui os dados do usuário pelo retrato enviado, numa transação (tudo ou nada) |
-| `DELETE /api/state` | zera os dados do usuário (a conta, no Neon Auth, permanece) |
+| `GET /api/state` | `revision` (versão dos dados), cartões (com compras), despesas, valores de terceiros (com compras) e blocos do usuário |
+| `PUT /api/state` | substitui os dados do usuário pelo retrato enviado, numa transação (tudo ou nada). O corpo leva `revision`: a versão que o cliente leu. Responde `{ "revision": n }` |
+| `DELETE /api/state` | zera os dados do usuário e avança a versão (a conta, no Neon Auth, permanece) |
+
+**Controle de versão.** Cada usuário tem um número de versão. O `PUT` só vale se `revision` for igual à versão atual
+(`0` para quem ainda não gravou nada); senão a API responde **409** (`conflict`) e não altera nada. Assim, a mesma conta
+aberta em dois dispositivos nunca se sobrescreve em silêncio: quem salvou primeiro vence, e a outra tela é avisada.
+Duas gravações simultâneas com a mesma versão são colocadas em fila no banco: uma passa, a outra leva 409.
 
 Erros vêm como `{ "error": { "code", "message", "details?" } }`, com mensagens em português.
 

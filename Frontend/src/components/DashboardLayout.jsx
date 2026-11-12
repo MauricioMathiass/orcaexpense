@@ -72,12 +72,15 @@ export function DashboardLayout({ summaryActions, initialData, onSignOut }) {
   const [heroMode, setHeroMode] = useState('expenses')
   const [customWidgets, setCustomWidgets] = useState(initialData.customWidgets)
   const [storedReceivables, setReceivables] = useState(initialData.receivables)
-  const { status: saveStatus, flush: saveNow } = useAutoSave({
-    cards: cardsState,
-    expenses,
-    receivables: storedReceivables,
-    customWidgets,
-  })
+  const { status: saveStatus, flush: saveNow } = useAutoSave(
+    {
+      cards: cardsState,
+      expenses,
+      receivables: storedReceivables,
+      customWidgets,
+    },
+    initialData.revision,
+  )
   const receivables = useMemo(() => normalizeReceivables(storedReceivables), [storedReceivables])
   const [receivableForm, setReceivableForm] = useState(null)
   const [receivableName, setReceivableName] = useState('')
@@ -713,6 +716,17 @@ export function DashboardLayout({ summaryActions, initialData, onSignOut }) {
         <p className="save-status" role="alert">
           Não foi possível salvar. Tentando de novo...
         </p>
+      )}
+
+      {saveStatus === 'conflict' && (
+        <div className="save-status save-status--conflict" role="alert">
+          <span>
+            Seus dados foram alterados em outro dispositivo. As mudanças desta tela não foram salvas.
+          </span>
+          <button type="button" onClick={() => window.location.reload()}>
+            Recarregar
+          </button>
+        </div>
       )}
 
       {confirmingLogout && (

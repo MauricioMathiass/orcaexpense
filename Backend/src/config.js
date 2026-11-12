@@ -26,7 +26,8 @@ export const config = {
   authIssuer: new URL(authBaseUrl).origin,
   corsOrigins: (process.env.CORS_ORIGIN || 'http://localhost:5173,http://localhost:5174')
     .split(',')
-    .map((origin) => origin.trim())
+    // Tolera a barra no final ("https://site.netlify.app/"): o navegador envia a origem sem ela.
+    .map((origin) => origin.trim().replace(/\/+$/, ''))
     .filter(Boolean),
   isProduction: process.env.NODE_ENV === 'production',
 }
